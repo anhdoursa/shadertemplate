@@ -17,6 +17,29 @@ const canvas = document.querySelector("canvas.webgl");
 // Scene
 const scene = new THREE.Scene();
 
+// Sun
+const sunColor = new THREE.Color(15384750).convertSRGBToLinear();
+const sunLight = new THREE.PointLight(sunColor);
+sunLight.position.set(0.36, -2.454, 0);
+
+
+scene.add(sunLight);
+
+const sunMat = new THREE.MeshBasicMaterial({
+  color: sunColor,
+  transparent: true,
+  fog: false,
+});
+const sunGeo = new THREE.SphereBufferGeometry(1.5, 32, 32);
+
+const sun = new THREE.Mesh(sunGeo, sunMat);
+sun.position.copy(sunLight.position);
+sun.updateMatrix();
+sun.frustumCulled = false;
+sun.matrixAutoUpdate = false;
+sun.name = "sun";
+
+scene.add(sun);
 /**
  * Test mesh
  */
@@ -40,7 +63,7 @@ const material = new THREE.ShaderMaterial({
 
 // Mesh
 const mesh = new THREE.Mesh(geometry, material);
-scene.add(mesh);
+// scene.add(mesh);
 
 /**
  * Sizes
