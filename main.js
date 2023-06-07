@@ -2,13 +2,18 @@ import "/style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as dat from "lil-gui";
-import flagVertexShader from "/shaders/flag/vertex.glsl";
-import flagFragmentShader from "/shaders/flag/fragment.glsl";
+
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
 /**
  * Base
  */
+let composer
+
 // Debug
 const gui = new dat.GUI();
 
@@ -63,6 +68,7 @@ loader.load(
     texture.center.x = 0.5;
     texture.center.y = 0.5;
     texture.repeat.set(4, 4);
+    console.log('texture', texture);
     eye.material = new THREE.MeshStandardMaterial({
       metalness: 0.12,
       roughness: 0.55,
@@ -86,9 +92,9 @@ loader.load(
 // Sun
 const sunColor = new THREE.Color(15384750).convertSRGBToLinear();
 const sunLight = new THREE.PointLight(sunColor);
-sunLight.position.set(0, 0, 0);
+sunLight.position.set(0.36, -2.454, 0);
 
-group.add(sunLight);
+
 
 const sunMat = new THREE.MeshBasicMaterial({
   color: sunColor,
@@ -130,6 +136,9 @@ scene.add(group);
 // const mesh = new THREE.Mesh(geometry, material);
 // scene.add(mesh);
 
+
+
+
 /**
  * Sizes
  */
@@ -149,6 +158,7 @@ window.addEventListener("resize", () => {
 
   // Update renderer
   renderer.setSize(sizes.width, sizes.height);
+  composer.setSize( sizes.width, sizes.height );
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
@@ -157,17 +167,17 @@ window.addEventListener("resize", () => {
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(
-  75,
+  45,
   sizes.width / sizes.height,
-  0.1,
-  100
+  1,
+  8e3
 );
-camera.position.set(0, 5, 5);
+camera.position.set(0, 0, -305);
 scene.add(camera);
 
 // Controls
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
+controls.enabled = false;
 
 /**
  * Renderer
@@ -178,6 +188,16 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+
+// postprocessing
+
+composer = new EffectComposer( renderer );
+composer.addPass( new RenderPass( scene, camera ) );
+
+const gammaPass = new ShaderPass( GammaCorrectionShader );
+composer.addPass( gammaPass );
+
+
 /**
  * Animate
  */
@@ -187,11 +207,11 @@ const tick = () => {
   controls.update();
   const elapsedTime = clock.getElapsedTime();
   // update uTime
-  material.uniforms.uTime.value = elapsedTime;
+  // material.uniforms.uTime.value = elapsedTime;
 
   // Render
-  renderer.render(scene, camera);
-
+  // renderer.render(scene, camera);
+  composer.render();
   // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
