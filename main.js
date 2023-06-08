@@ -3,16 +3,14 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as dat from "lil-gui";
 
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import * as POSTPROCESSING from "postprocessing";
+
 /**
  * Base
  */
-let composer
+let composer;
 
 // Debug
 const gui = new dat.GUI();
@@ -68,7 +66,7 @@ loader.load(
     texture.center.x = 0.5;
     texture.center.y = 0.5;
     texture.repeat.set(4, 4);
-    console.log('texture', texture);
+    console.log("texture", texture);
     eye.material = new THREE.MeshStandardMaterial({
       metalness: 0.12,
       roughness: 0.55,
@@ -93,8 +91,7 @@ loader.load(
 const sunColor = new THREE.Color(15384750).convertSRGBToLinear();
 const sunLight = new THREE.PointLight(sunColor);
 sunLight.position.set(0.36, -2.454, 0);
-
-
+group.add(sunLight);
 
 const sunMat = new THREE.MeshBasicMaterial({
   color: sunColor,
@@ -111,33 +108,6 @@ sun.matrixAutoUpdate = false;
 sun.name = "sun";
 group.add(sun);
 scene.add(group);
-/**
- * Test mesh
- */
-// Geometry
-// const geometry = new THREE.PlaneGeometry(1, 1, 32, 32);
-
-// Texture
-// const texture = new THREE.TextureLoader().load("/textures/flag-french.jpg");
-// console.log(texture);
-// // Material
-// const material = new THREE.ShaderMaterial({
-//   vertexShader: flagVertexShader,
-//   fragmentShader: flagFragmentShader,
-//   side: THREE.DoubleSide,
-//   uniforms: {
-//     uTime: { value: 0 },
-//     uFrequency: { value: new THREE.Vector2(10, 10) },
-//     uTexture: { value: texture },
-//   },
-// });
-
-// Mesh
-// const mesh = new THREE.Mesh(geometry, material);
-// scene.add(mesh);
-
-
-
 
 /**
  * Sizes
@@ -158,7 +128,7 @@ window.addEventListener("resize", () => {
 
   // Update renderer
   renderer.setSize(sizes.width, sizes.height);
-  composer.setSize( sizes.width, sizes.height );
+  composer.setSize(sizes.width, sizes.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
@@ -188,15 +158,31 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-
 // postprocessing
 
-composer = new EffectComposer( renderer );
-composer.addPass( new RenderPass( scene, camera ) );
+const areaImage = new Image();
+areaImage.src = POSTPROCESSING.SMAAEffect.areaImageDataURL;
+const searchImage = new Image();
+searchImage.src = POSTPROCESSING.SMAAEffect.searchImageDataURL;
+const smaaEffect = new POSTPROCESSING.SMAAEffect(searchImage, areaImage, 1);
 
-const gammaPass = new ShaderPass( GammaCorrectionShader );
-composer.addPass( gammaPass );
+const godRaysEffect = new POSTPROCESSING.GodRaysEffect(camera, sun, {
+  height: 480,
+  kernelSize: POSTPROCESSING.KernelSize.SMALL,
+  density: 0.8,
+  decay: 0.9,
+  weight: 0.7,
+  exposure: 0.9,
+  samples: 35,
+  clampMax: 1,
+});
+const renderPass = new POSTPROCESSING.RenderPass(scene, camera);
+const effectPass = new POSTPROCESSING.EffectPass(camera, smaaEffect ,godRaysEffect);
+effectPass.renderToScreen = true;
 
+composer = new POSTPROCESSING.EffectComposer(renderer);
+composer.addPass(renderPass);
+composer.addPass(effectPass);
 
 /**
  * Animate
@@ -211,7 +197,7 @@ const tick = () => {
 
   // Render
   // renderer.render(scene, camera);
-  composer.render();
+  composer.render()
   // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
